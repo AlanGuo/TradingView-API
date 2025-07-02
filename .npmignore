@@ -2,3 +2,13 @@ node_modules/
 .github/
 tests/
 .env
+.env.*
+*.log
+.DS_Store
+.vscode/
+.idea/
+coverage/
+.nyc_output/
+*.tgz
+.eslintrc.js
+vite.config.js
