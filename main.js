@@ -4,8 +4,5 @@ const BuiltInIndicator = require('./src/classes/BuiltInIndicator');
 const PineIndicator = require('./src/classes/PineIndicator');
 const PinePermManager = require('./src/classes/PinePermManager');
 
-module.exports = { ...miscRequests };
-module.exports.Client = Client;
-module.exports.BuiltInIndicator = BuiltInIndicator;
-module.exports.PineIndicator = PineIndicator;
-module.exports.PinePermManager = PinePermManager;
+const TradingView = { ...miscRequests, Client, BuiltInIndicator, PineIndicator, PinePermManager };
+export { TradingView }

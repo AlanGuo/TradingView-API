@@ -1,6 +1,6 @@
 const os = require('os');
 const axios = require('axios');
-
+const { HttpsProxyAgent } = require('https-proxy-agent');
 const PineIndicator = require('./classes/PineIndicator');
 
 const validateStatus = (status) => status < 500;
@@ -118,44 +118,72 @@ module.exports = {
    * Find a symbol
    * @function searchMarket
    * @param {string} search Keywords
-   * @param {'stock'
+   * @param {'stock' | 'common_stock'
    *  | 'futures' | 'forex' | 'cfd'
    *  | 'crypto' | 'index' | 'economic'
    * } [filter] Caterogy filter
+   * @param exchange Exchange
+   * @param country Country
+   * @param sector 板块
+   * @param sort_by_country 排序
+   * @param start start index
    * @returns {Promise<SearchMarketResult[]>} Search results
    */
-  async searchMarket(search, filter = '') {
-    const { data } = await axios.get(
-      `https://symbol-search.tradingview.com/symbol_search/?text=${search.replace(/ /g, '%20')}&type=${filter}`,
+  async searchMarket(search, filter = '', exchange = '', country = '', sector = '', sort_by_country = 'US', start = 0) {
+    const isChinese = ['HK', 'CN', 'TW'].indexOf(country) > -1;
+    const lang = isChinese ? 'zh' : 'en';
+    const { data: { symbols_remaining, symbols }} = await axios.get(
+      `https://symbol-search.tradingview.com/symbol_search/v3/?text=${search.replace(/ /g, '%20')}&search_type=${filter}&exchange=${exchange}&country=${country}&lang=${lang}&sector=${sector}&start=${start}&sort_by_country=${sort_by_country}`,
       {
         validateStatus,
         headers: {
+          lang,
           origin: 'https://www.tradingview.com',
         },
       },
     );
-
-    return data.map((s) => {
-      const exchange = s.exchange.split(' ')[0];
-      const id = `${exchange}:${s.symbol}`;
-
-      // const screener = (['forex', 'crypto'].includes(s.type)
-      //   ? s.type
-      //   : this.getScreener(exchange)
-      // );
-      const screener = 'global';
+    return { symbols_remaining,
+      symbols: symbols.map((s) => {
+      const exchange = s.exchange;
+      const source_id = s.source_id;
+      const id = `${source_id}:${s.symbol}`;
 
       return {
         id,
         exchange,
-        fullExchange: s.exchange,
-        screener,
         symbol: s.symbol,
+        currency: s.currency_code,
         description: s.description,
-        type: s.type,
-        getTA: () => this.getTA(screener, id),
+        source_id,
+        filter,
+        type: s.type
       };
-    });
+    })};
+  },
+
+
+  /**
+   * Scan a symbol
+   * @function scanSymbol
+   * @param {string} symbol Keywords
+   * @param {Array} fields
+  * @returns {Promise<ScanSymbolResult>} Search results
+  */
+  async scanSymbol(symbol, country, fields) {
+    const fieldsStr = fields.join(",");
+    const isChinese = ['HK', 'CN', 'TW'].indexOf(country) > -1;
+    const lang = isChinese ? 'zh' : 'en';
+    const { data } = await axios.get(
+      `https://scanner.tradingview.com/symbol?symbol=${symbol}&fields=${fieldsStr}`,
+      {
+        validateStatus,
+        headers: {
+          lang,
+          origin: 'https://www.tradingview.com',
+        },
+      },
+    );
+    return {...data};
   },
 
   /**
@@ -208,7 +236,7 @@ module.exports = {
         name: ind.scriptName,
         author: {
           id: ind.userId,
-          username: '@TRADINGVIEW@',
+          username: '@ZTRADING@',
         },
         image: '',
         access: 'closed_source',
@@ -245,16 +273,24 @@ module.exports = {
    * @param {'last' | string} [version] Wanted version of the indicator
    * @returns {Promise<PineIndicator>} Indicator
    */
-  async getIndicator(id, version = 'last') {
+  async getIndicator(id, version = 'last', session, signature) {
     const indicID = id.replace(/ |%/g, '%25');
-
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
+    const httpsProxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false }) : undefined;
     const { data } = await axios.get(
       `https://pine-facade.tradingview.com/pine-facade/translate/${indicID}/${version}`,
-      { validateStatus },
+      { 
+        validateStatus,
+        httpsAgent: httpsProxyAgent ? httpsProxyAgent : undefined,
+        proxy: httpsProxyAgent ? false : undefined,
+        headers: {
+          cookie: `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`,
+        },
+      },
     );
 
     if (!data.success || !data.result.metaInfo || !data.result.metaInfo.inputs) {
-      throw new Error(`Inexistent or unsupported indicator: "${data.reason}"`);
+      throw new Error(`Inexistent or unsupported indicator: "${data}"`);
     }
 
     const inputs = {};
@@ -395,8 +431,12 @@ module.exports = {
    * @returns {Promise<User>} Token
    */
   async getUser(session, signature = '', location = 'https://www.tradingview.com/') {
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
+    const httpsProxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false }) : undefined;
     const { data } = await axios.get(location, {
       validateStatus,
+      httpsAgent: httpsProxyAgent ? httpsProxyAgent : undefined,
+      proxy: httpsProxyAgent ? false : undefined,
       headers: {
         cookie: `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`,
       },
@@ -531,23 +571,31 @@ module.exports = {
    * @returns {Promise<Drawing[]>} Drawings
    */
   async getDrawings(layout, symbol = '', credentials = {}, chartID = '_shared') {
-    const chartToken = await module.exports.getChartToken(layout, credentials);
-
-    const { data } = await axios.get(
-      `https://charts-storage.tradingview.com/charts-storage/get/layout/${
-        layout
-      }/sources?chart_id=${
-        chartID
-      }&jwt=${
-        chartToken
-      }${
-        (symbol ? `&symbol=${symbol}` : '')
-      }`,
-      { validateStatus },
+    const { session, signature } = (
+      credentials.id && credentials.session
+        ? credentials
+        : { id: -1, session: null, signature: null }
     );
-
-    if (!data.payload) throw new Error('Wrong layout, user credentials, or chart id.');
-
+    const chartToken = await module.exports.getChartToken(layout, credentials);
+    const url = `https://charts-storage.tradingview.com/charts-storage/get/layout/${
+      layout
+    }/sources?chart_id=${
+      chartID
+    }&jwt=${
+      chartToken
+    }${
+      (symbol ? `&symbol=${symbol}` : '')
+    }`
+    const res = await axios.get(url,
+      { validateStatus,
+        timeout: 10000,
+        headers: {
+          cookie: `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`,
+        }
+       },
+    );
+    const { data } = res
+    if (!data.success) throw new Error('Wrong layout, user credentials, or chart id.');
     return Object.values(data.payload.sources || {}).map((drawing) => ({
       ...drawing, ...drawing.state,
     }));

@@ -47,20 +47,6 @@ Join the Telegram group of the TradingView-API Community: [t.me/tradingview_api]
 
 ___
 
-## Installation
-
-Stable version:
-
-```ruby
-npm i @mathieuc/tradingview
-```
-
-Last version:
-
-```ruby
-npm i github:Mathieu2301/TradingView-API
-```
-
 ## Examples
 
 You can find all the examples and snippets in `./examples` folder.

@@ -142,6 +142,15 @@ module.exports = (client) => class ChartSession {
   }
 
   /**
+   * barCloseTime
+   * @type {number}
+   */
+  #barCloseTime = 0;
+  /** @return {number} List of periods values */
+  get barCloseTime() {
+    return this.#barCloseTime;
+  }
+  /**
    * Current market infos
    * @type {MarketInfos}
    */
@@ -209,7 +218,8 @@ module.exports = (client) => class ChartSession {
             if (k === '$prices') {
               const periods = packet.data[1].$prices;
               if (!periods || !periods.s) return;
-
+              
+              this.#barCloseTime = periods.lbs.bar_close_time;
               periods.s.forEach((p) => {
                 [this.#chartSession.indexes[p.i]] = p.v;
                 this.#periods[p.v[0]] = {
