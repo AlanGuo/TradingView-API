@@ -1,14 +1,22 @@
 {
   "name": "@alandlguo/tradingview-api",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Tradingview instant stocks API, indicator alerts, trading bot, and more !",
   "main": "main.js",
+  "module": "main.js",
+  "exports": {
+    ".": {
+      "import": "./main.js",
+      "require": "./main.js"
+    },
+    "./src/*": "./src/*"
+  },
   "scripts": {
     "test": "vitest"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:AlanGuo/TradingView-API.git"
+    "url": "git+ssh://git@github.com/AlanGuo/TradingView-API.git"
   },
   "engines": {
     "node": ">=14.0.0"
