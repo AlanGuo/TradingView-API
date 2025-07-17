@@ -162,7 +162,7 @@ module.exports = class Client {
     if (!this.isOpen) return;
 
     protocol.parseWSPacket(str).forEach((packet) => {
-      if (global.TW_DEBUG) console.log('§90§30§107 CLIENT §0 PACKET', packet);
+      if (global.TW_DEBUG) console.debug('§90§30§107 CLIENT §0 PACKET', packet);
       if (typeof packet === 'number') { // Ping
         this.#ws.send(protocol.formatWSPacket(`~h~${packet}`));
         this.#handleEvent('ping', packet);
@@ -211,7 +211,7 @@ module.exports = class Client {
     while (this.isOpen && this.#logged && this.#sendQueue.length > 0) {
       const packet = this.#sendQueue.shift();
       this.#ws.send(packet);
-      if (global.TW_DEBUG) console.log('§90§30§107 > §0', packet);
+      if (global.TW_DEBUG) console.debug('§90§30§107 > §0', packet);
     }
   }
 
@@ -232,8 +232,10 @@ module.exports = class Client {
     const server = clientOptions.server || 'data';
     let agent
     if (proxy) {
+      if (global.TW_DEBUG) {
+        console.debug('[TradingView client] Using proxy server:', proxy);
+      }
       // 使用代理服务器
-      console.log('[TradingView client] Using proxy server:', proxy);
       agent = new HttpsProxyAgent(proxy);
     }
     
