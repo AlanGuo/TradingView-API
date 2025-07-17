@@ -441,7 +441,6 @@ module.exports = {
         cookie: `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`,
       },
     });
-
     if (data.includes('auth_token')) {
       return {
         id: /"id":([0-9]{1,10}),/.exec(data)?.[1],
@@ -521,11 +520,14 @@ module.exports = {
         ? credentials
         : { id: -1, session: null, signature: null }
     );
-
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
+    const httpsProxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false }) : undefined;
     const { data } = await axios.get(
       `https://www.tradingview.com/chart-token/?image_url=${layout}&user_id=${id}`,
       {
         validateStatus,
+        httpsAgent: httpsProxyAgent ? httpsProxyAgent : undefined,
+        proxy: httpsProxyAgent ? false : undefined,
         headers: {
           cookie: session
             ? `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`
@@ -534,7 +536,7 @@ module.exports = {
       },
     );
 
-    if (!data.token) throw new Error('Wrong layout or credentials');
+    if (!data.token) throw new Error('Failed to retrieve chart token', data.error || 'Unknown error');
 
     return data.token;
   },
@@ -586,16 +588,19 @@ module.exports = {
     }${
       (symbol ? `&symbol=${symbol}` : '')
     }`
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
+    const httpsProxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false }) : undefined;
     const res = await axios.get(url,
       { validateStatus,
-        timeout: 10000,
         headers: {
           cookie: `sessionid=${session}${signature ? `;sessionid_sign=${signature};` : ''}`,
-        }
+        },
+        httpsAgent: httpsProxyAgent ? httpsProxyAgent : undefined,
+        proxy: httpsProxyAgent ? false : undefined,
        },
     );
     const { data } = res
-    if (!data.success) throw new Error('Wrong layout, user credentials, or chart id.');
+    if (!data.success) throw new Error('Failed to retrieve drawings', data.error || 'Unknown error');
     return Object.values(data.payload.sources || {}).map((drawing) => ({
       ...drawing, ...drawing.state,
     }));

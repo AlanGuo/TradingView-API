@@ -241,7 +241,7 @@ module.exports = class Client {
     
     // WebSocket连接配置
     const wsOptions = {
-      origin: 'https://s.tradingview.com',
+      origin: 'https://www.tradingview.com',
       rejectUnauthorized: agent ? false : true, // 如果使用代理，可能需要禁用证书验证
       agent,
       headers: {
