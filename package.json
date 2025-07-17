@@ -1,6 +1,6 @@
 {
   "name": "@alandlguo/tradingview-api",
-  "version": "1.2.1",
+  "version": "1.0.1",
   "description": "Tradingview instant stocks API, indicator alerts, trading bot, and more !",
   "main": "main.js",
   "module": "index.mjs",
@@ -12,7 +12,8 @@
     "./src/*": "./src/*"
   },
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "prepublishOnly": "npm test && npm run build"
   },
   "repository": {
     "type": "git",
