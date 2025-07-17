@@ -12,8 +12,7 @@
     "./src/*": "./src/*"
   },
   "scripts": {
-    "test": "vitest",
-    "prepublishOnly": "npm test && npm run build"
+    "test": "vitest"
   },
   "repository": {
     "type": "git",
