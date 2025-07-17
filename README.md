@@ -31,7 +31,7 @@ To publish a new version:
 
 1. Update version in `package.json`
 2. Update `CHANGELOG.md` with new changes
-3. Run tests: `npm test`
+3. Run tests: `npm test` 
 4. Build: `npm run build`
 5. Publish: `npm publish`
 
